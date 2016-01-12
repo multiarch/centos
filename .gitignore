@@ -1,2 +1,5 @@
 *.iso
 *.img.xz
+*.img
+*.tar
+*.tar.xz
