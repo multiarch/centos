@@ -58,8 +58,10 @@ for version in "${versions[@]}"; do
 	fi
     fi
     if [ "$(echo *.iso)" != "*.iso" ]; then
-	echo "FIXME: todo"
-	exit 1
+	isofilename="$(echo *.iso)"
+	if [ ! -f iso-slim/rootfs.tar ]; then
+	    virt-tar-out -a "${isofilename}" / - > iso-slim/rootfs.tar
+	fi
     fi
 
     # create iso-slim dockerfile
