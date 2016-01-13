@@ -35,6 +35,9 @@ for version in "${versions[@]}"; do
     dir="$(readlink -f "$version")"
     url="$(get_part "$dir" url)"
     tags="$(get_part "$dir" tags)"
+    centos_version="$(get_part "$dir" version)"
+    arch="$(get_part "$dir" arch)"
+    qemu_arch="$(get_part "$dir" qemu_arch "")"
     cd "$dir"
 
     # fetch image
@@ -59,13 +62,39 @@ for version in "${versions[@]}"; do
 	exit 1
     fi
 
+    # create iso-slim dockerfile
     cat > iso-slim/Dockerfile <<EOF
 FROM scratch
 ADD rootfs.tar /
-EOF
-    docker build -t $repo:$version-iso-slim iso-slim
+ENV ARCH=${arch} CENTOS_VERSION=${centos_version} DOCKER_REPO=${repo} CENTOS_IMAGE_URL=${url} QEMU_ARCH=${qemu_arch}
 
+EOF
+
+    # build iso-slim image
+    docker build -t $repo:$version-iso-slim iso-slim
     for tag in $tags; do
-	echo $tag
+	docker tag -f $repo:$version-iso-slim $repo:$tag-iso-slim
     done
+
+    # create iso dockerfile
+    mkdir -p iso
+    if [ -n "${qemu_arch}" -a ! -f "iso/qemu-${qemu_arch}-static.tar.xz" ]; then
+	wget https://github.com/multiarch/qemu-user-static/releases/download/v2.5.0/x86_64_qemu-${qemu_arch}-static.tar.xz -O "iso/qemu-${qemu_arch}-static.tar.xz"
+    fi
+    if [ -n "${qemu_arch}" ]; then
+	cat > iso/Dockerfile <<EOF
+FROM $repo:$version-iso-slim
+ADD qemu-${qemu_arch}-static.tar.xz /usr/bin
+EOF
+    else
+	cat > iso/Dockerfile <<EOF
+FROM $repo:$version-iso-slim
+EOF
+    fi
+    docker build -t $repo:$version-iso iso
+    for tag in $tags; do
+	docker tag -f $repo:$version-iso $repo:$tag-iso
+    done
+
+    docker run -it --rm $repo:$version-iso uname -a
 done
