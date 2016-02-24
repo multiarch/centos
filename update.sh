@@ -105,4 +105,27 @@ EOF
     done
 
     docker run -it --rm $repo:$version-iso uname -a
+
+    # build iso-cleanup image
+    mkdir -p iso-clean
+    cat > iso-clean/Dockerfile <<EOF
+FROM $repo:$version-iso
+RUN yum remove -y \
+      kernel-* *-firmware grub* centos-logos mariadb*     \
+      postfix btrfs* mozjs17 xfsprogs cloud-init pciutils* \
+      libsoup* libgudev* python-prettytable               \
+      python-setuptools python-boto yum-utils             \
+      libsysfs* glib-networking libproxy plymouth*        \
+      libdrm wpa_supplicant *-desktop-*
+RUN rm -rf /boot
+EOF
+    docker build -t tmp-$repo:$version-iso-cleaner iso-clean
+    tmpname=export-$(openssl rand -base64 10 | sed 's@[=/]@@g')
+    docker run --name="$tmpname" --entrypoint=/does/not/exist tmp-$repo:$version-iso-cleaner 2>/dev/null || true
+    docker export "$tmpname" | docker import - "$repo:$version-clean"
+    docker rm "$tmpname"
+    for tag in $tags; do
+	docker tag -f $repo:$version-clean $repo:$tag-clean
+    done
+    docker run -it --rm $repo:$version-clean uname -a
 done
