@@ -122,7 +122,10 @@ EOF
     docker build -t tmp-$repo:$version-iso-cleaner iso-clean
     tmpname=export-$(openssl rand -base64 10 | sed 's@[=/]@@g')
     docker run --name="$tmpname" --entrypoint=/does/not/exist tmp-$repo:$version-iso-cleaner 2>/dev/null || true
-    docker export "$tmpname" | docker import - "$repo:$version-clean"
+    docker export "$tmpname" | \
+	docker import \
+	       -c "ENV ARCH=${arch} CENTOS_VERSION=${centos_version} DOCKER_REPO=${repo} CENTOS_IMAGE_URL=${url} QEMU_ARCH=${qemu_arch}" \
+	       - "$repo:$version-clean"
     docker rm "$tmpname"
     for tag in $tags; do
 	docker tag -f $repo:$version-clean $repo:$tag-clean
