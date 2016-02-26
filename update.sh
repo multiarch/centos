@@ -38,6 +38,7 @@ for version in "${versions[@]}"; do
     centos_version="$(get_part "$dir" version)"
     arch="$(get_part "$dir" arch)"
     qemu_arch="$(get_part "$dir" qemu_arch "")"
+    scw_arch="$(get_part "$dir" scw_arch "$arch")"
     cd "$dir"
 
     # fetch image
@@ -74,35 +75,35 @@ for version in "${versions[@]}"; do
     cat > iso-slim/Dockerfile <<EOF
 FROM scratch
 ADD rootfs.tar /
-ENV ARCH=${arch} CENTOS_VERSION=${centos_version} DOCKER_REPO=${repo} CENTOS_IMAGE_URL=${url} QEMU_ARCH=${qemu_arch}
+ENV ARCH=${scw_arch} CENTOS_VERSION=${centos_version} DOCKER_REPO=${repo} CENTOS_IMAGE_URL=${url} QEMU_ARCH=${qemu_arch}
 
 EOF
 
-    # build iso-slim image
-    docker build -t $repo:$version-iso-slim iso-slim
-    for tag in $tags; do
-	docker tag -f $repo:$version-iso-slim $repo:$tag-iso-slim
-    done
+    ## build iso-slim image
+    #docker build -t $repo:$version-iso-slim iso-slim
+    #for tag in $tags; do#
+    #	docker tag -f $repo:$version-iso-slim $repo:$tag-iso-slim
+    #done
 
     # create iso dockerfile
-    mkdir -p iso
-    if [ -n "${qemu_arch}" -a ! -f "iso/qemu-${qemu_arch}-static.tar.xz" ]; then
-	wget https://github.com/multiarch/qemu-user-static/releases/download/v2.5.0/x86_64_qemu-${qemu_arch}-static.tar.xz -O "iso/qemu-${qemu_arch}-static.tar.xz"
-    fi
-    if [ -n "${qemu_arch}" ]; then
-	cat > iso/Dockerfile <<EOF
-FROM $repo:$version-iso-slim
-ADD qemu-${qemu_arch}-static.tar.xz /usr/bin
-EOF
-    else
-	cat > iso/Dockerfile <<EOF
-FROM $repo:$version-iso-slim
-EOF
-    fi
-    docker build -t $repo:$version-iso iso
-    for tag in $tags; do
-	docker tag -f $repo:$version-iso $repo:$tag-iso
-    done
+    #mkdir -p iso
+    #if [ -n "${qemu_arch}" -a ! -f "iso/qemu-${qemu_arch}-static.tar.xz" ]; then
+#	wget https://github.com/multiarch/qemu-user-static/releases/download/v2.5.0/x86_64_qemu-${qemu_arch}-static.tar.xz -O "iso/qemu-${qemu_arch}-static.tar.xz"
+#    fi
+#    if [ -n "${qemu_arch}" ]; then
+#	cat > iso/Dockerfile <<EOF
+#FROM $repo:$version-iso-slim
+#ADD qemu-${qemu_arch}-static.tar.xz /usr/bin
+#EOF
+#    else
+#	cat > iso/Dockerfile <<EOF
+#FROM $repo:$version-iso-slim
+#EOF
+#    fi
+#    docker build -t $repo:$version-iso iso
+#    for tag in $tags; do
+#	docker tag -f $repo:$version-iso $repo:$tag-iso
+#    done
 
     docker run -it --rm $repo:$version-iso uname -a
 
@@ -124,7 +125,7 @@ EOF
     docker run --name="$tmpname" --entrypoint=/does/not/exist tmp-$repo:$version-iso-cleaner 2>/dev/null || true
     docker export "$tmpname" | \
 	docker import \
-	       -c "ENV ARCH=${arch} CENTOS_VERSION=${centos_version} DOCKER_REPO=${repo} CENTOS_IMAGE_URL=${url} QEMU_ARCH=${qemu_arch}" \
+	       -c "ENV ARCH=${scw_arch} CENTOS_VERSION=${centos_version} DOCKER_REPO=${repo} CENTOS_IMAGE_URL=${url} QEMU_ARCH=${qemu_arch}" \
 	       - "$repo:$version-clean"
     docker rm "$tmpname"
     for tag in $tags; do
