@@ -1,3 +1,4 @@
+qemu-*-static
 *.iso
 *.img.xz
 *.img
