@@ -80,30 +80,30 @@ ENV ARCH=${scw_arch} CENTOS_VERSION=${centos_version} DOCKER_REPO=${repo} CENTOS
 EOF
 
     ## build iso-slim image
-    #docker build -t $repo:$version-iso-slim iso-slim
-    #for tag in $tags; do#
-    #	docker tag -f $repo:$version-iso-slim $repo:$tag-iso-slim
-    #done
+    docker build -t $repo:$version-iso-slim iso-slim
+    for tag in $tags; do
+    	docker tag $repo:$version-iso-slim $repo:$tag-iso-slim
+    done
 
     # create iso dockerfile
-    #mkdir -p iso
-    #if [ -n "${qemu_arch}" -a ! -f "iso/qemu-${qemu_arch}-static.tar.xz" ]; then
-#	wget https://github.com/multiarch/qemu-user-static/releases/download/v2.5.0/x86_64_qemu-${qemu_arch}-static.tar.xz -O "iso/qemu-${qemu_arch}-static.tar.xz"
-#    fi
-#    if [ -n "${qemu_arch}" ]; then
-#	cat > iso/Dockerfile <<EOF
-#FROM $repo:$version-iso-slim
-#ADD qemu-${qemu_arch}-static.tar.xz /usr/bin
-#EOF
-#    else
-#	cat > iso/Dockerfile <<EOF
-#FROM $repo:$version-iso-slim
-#EOF
-#    fi
-#    docker build -t $repo:$version-iso iso
-#    for tag in $tags; do
-#	docker tag -f $repo:$version-iso $repo:$tag-iso
-#    done
+    mkdir -p iso
+    if [ -n "${qemu_arch}" -a ! -f "iso/qemu-${qemu_arch}-static" ]; then
+	wget https://github.com/multiarch/qemu-user-static/releases/download/v2.9.0/x86_64_qemu-${qemu_arch}-static -O "iso/qemu-${qemu_arch}-static"
+    fi
+    if [ -n "${qemu_arch}" ]; then
+	cat > iso/Dockerfile <<EOF
+FROM $repo:$version-iso-slim
+ADD qemu-${qemu_arch}-static /usr/bin
+EOF
+    else
+	cat > iso/Dockerfile <<EOF
+FROM $repo:$version-iso-slim
+EOF
+    fi
+    docker build -t $repo:$version-iso iso
+    for tag in $tags; do
+	docker tag $repo:$version-iso $repo:$tag-iso
+    done
 
     docker run -it --rm $repo:$version-iso uname -a
 
@@ -129,7 +129,7 @@ EOF
 	       - "$repo:$version-clean"
     docker rm "$tmpname"
     for tag in $tags; do
-	docker tag -f $repo:$version-clean $repo:$tag-clean
+	docker tag $repo:$version-clean $repo:$tag-clean
     done
     docker run -it --rm $repo:$version-clean uname -a
 done
