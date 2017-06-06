@@ -88,7 +88,8 @@ EOF
     # create iso dockerfile
     mkdir -p iso
     if [ -n "${qemu_arch}" -a ! -f "iso/qemu-${qemu_arch}-static" ]; then
-	wget https://github.com/multiarch/qemu-user-static/releases/download/v2.9.0/x86_64_qemu-${qemu_arch}-static -O "iso/qemu-${qemu_arch}-static"
+	wget https://github.com/multiarch/qemu-user-static/releases/download/v2.8.4/qemu-${qemu_arch}-static -O "iso/qemu-${qemu_arch}-static"
+	chmod +x "iso/qemu-${qemu_arch}-static"
     fi
     if [ -n "${qemu_arch}" ]; then
 	cat > iso/Dockerfile <<EOF
@@ -117,7 +118,8 @@ RUN yum remove -y \
       libsoup* libgudev* python-prettytable               \
       python-setuptools python-boto yum-utils             \
       libsysfs* glib-networking libproxy plymouth*        \
-      libdrm wpa_supplicant *-desktop-*
+      libdrm wpa_supplicant *-desktop-*                   \
+      perl gcc cpp doxygen emacs-nox
 RUN rm -rf /boot
 EOF
     docker build -t tmp-$repo:$version-iso-cleaner iso-clean
