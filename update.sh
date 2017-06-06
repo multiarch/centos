@@ -118,7 +118,8 @@ RUN yum remove -y \
       libsoup* libgudev* python-prettytable               \
       python-setuptools python-boto yum-utils             \
       libsysfs* glib-networking libproxy plymouth*        \
-      libdrm wpa_supplicant *-desktop-*
+      libdrm wpa_supplicant *-desktop-*                   \
+      perl gcc cpp doxygen emacs-nox
 RUN rm -rf /boot
 EOF
     docker build -t tmp-$repo:$version-iso-cleaner iso-clean
