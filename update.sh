@@ -129,7 +129,7 @@ RUN yum remove -y \
 RUN rm -rf /boot
 EOF
     docker build -t tmp-$repo:$version-iso-cleaner iso-clean
-    tmpname=export-$(openssl rand -base64 10 | sed 's@[=/]@@g')
+    tmpname=export-$(openssl rand -base64 10 | sed 's@[=/+]@@g')
     docker run --name="$tmpname" --entrypoint=/does/not/exist tmp-$repo:$version-iso-cleaner 2>/dev/null || true
     docker export "$tmpname" | \
 	docker import \
