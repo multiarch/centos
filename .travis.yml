@@ -1,11 +1,38 @@
 dist: xenial
-sudo: required
 services:
   - docker
 language: bash
+addons:
+    apt:
+        config:
+            retries: true
+        update: true
+        packages:
+            # Install libguestfs-tools to use virt-tar-out command.
+            # https://packages.ubuntu.com/xenial/libguestfs-tools
+            - libguestfs-tools
+env:
+    global:
+        # Enable below environment variables for debug when virt-tar-out shows error.
+        # - LIBGUESTFS_DEBUG=1
+        # - LIBGUESTFS_TRACE=1
+    matrix:
+        # Set available versions
+        # https://wiki.centos.org/Manuals/ReleaseNotes
+        # x86_64: http://cloud.centos.org/centos/7/images
+        # others: http://mirror.centos.org/altarch/$VERSION/isos/$ARCH
+        - VERSION=7.5.1809-x86_64
+        - VERSION=7.6.1811-x86_64
+        - VERSION=7.6.1901-x86_64
+        - VERSION=7.6.1810-aarch64
+        - VERSION=7.6.1810-armhfp
+        - VERSION=7.6.1810-i386
+        - VERSION=7.6.1810-ppc64
+        - VERSION=7.6.1810-ppc64le
 
 before_install:
   - docker run --rm --privileged multiarch/qemu-user-static:register
 
 script:
-  - ./update.sh
+  - ./update.sh "${VERSION}"
+  - docker images
