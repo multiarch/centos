@@ -1,10 +1,28 @@
 #!/bin/bash
 set -xeo pipefail
 
+# A POSIX variable
+OPTIND=1 # Reset in case getopts has been used previously in the shell.
+
+while getopts "v:u:d:" opt; do
+    case "$opt" in
+    v)  VERSION=$OPTARG
+        ;;
+    u)  QEMU_VER=$OPTARG
+        ;;
+    d)  DOCKER_REPO=$OPTARG
+        ;;
+    esac
+done
+
 cd "$(readlink -f "$(dirname "$BASH_SOURCE")")"
 
-versions=( "$@" )
-if [ ${#versions[@]} -eq 0 ]; then
+versions=""
+if [ "${VERSION}" != "" ]; then
+    versions="${VERSION}"
+elif [ ${#} -gt 0 ]; then
+    versions=( "$@" )
+else
     versions=( */ )
 fi
 
@@ -27,8 +45,6 @@ get_part() {
     fi
     return 1
 }
-
-repo="$(get_part . repo)"
 
 for version in "${versions[@]}"; do
     version="${version%/}"
@@ -105,38 +121,38 @@ EOF
     cat > iso-slim/Dockerfile <<EOF
 FROM scratch
 ADD rootfs.tar /
-ENV ARCH=${scw_arch} CENTOS_VERSION=${centos_version} DOCKER_REPO=${repo} CENTOS_IMAGE_URL=${url} QEMU_ARCH=${qemu_arch}
+ENV ARCH=${scw_arch} CENTOS_VERSION=${centos_version} DOCKER_REPO=${DOCKER_REPO} CENTOS_IMAGE_URL=${url} QEMU_ARCH=${qemu_arch}
 
 EOF
 
     ## build iso-slim image
-    docker build -t $repo:$version-iso-slim iso-slim
+    docker build -t ${DOCKER_REPO}:$version-iso-slim iso-slim
     for tag in $tags; do
-        docker tag $repo:$version-iso-slim $repo:$tag-iso-slim
+        docker tag ${DOCKER_REPO}:$version-iso-slim ${DOCKER_REPO}:$tag-iso-slim
     done
 
     # create iso dockerfile
     mkdir -p iso
     if [ -n "${qemu_arch}" -a ! -f "iso/qemu-${qemu_arch}-static" ]; then
-        wget https://github.com/multiarch/qemu-user-static/releases/download/v3.1.0-3/qemu-${qemu_arch}-static -O "iso/qemu-${qemu_arch}-static"
+        wget https://github.com/multiarch/qemu-user-static/releases/download/${QEMU_VER}/qemu-${qemu_arch}-static -O "iso/qemu-${qemu_arch}-static"
         chmod +x "iso/qemu-${qemu_arch}-static"
     fi
     if [ -n "${qemu_arch}" ]; then
         cat > iso/Dockerfile <<EOF
-FROM $repo:$version-iso-slim
+FROM ${DOCKER_REPO}:$version-iso-slim
 ADD qemu-${qemu_arch}-static /usr/bin
 EOF
     else
         cat > iso/Dockerfile <<EOF
-FROM $repo:$version-iso-slim
+FROM ${DOCKER_REPO}:$version-iso-slim
 EOF
     fi
-    docker build -t $repo:$version-iso iso
+    docker build -t ${DOCKER_REPO}:$version-iso iso
     for tag in $tags; do
-        docker tag $repo:$version-iso $repo:$tag-iso
+        docker tag ${DOCKER_REPO}:$version-iso ${DOCKER_REPO}:$tag-iso
     done
 
-    docker run -it --rm $repo:$version-iso bash -xc '
+    docker run -it --rm ${DOCKER_REPO}:$version-iso bash -xc '
         uname -a
         echo
         cat /etc/os-release 2>/dev/null
@@ -148,7 +164,7 @@ EOF
     # build iso-cleanup image
     mkdir -p iso-clean
     cat > iso-clean/Dockerfile <<EOF
-FROM $repo:$version-iso
+FROM ${DOCKER_REPO}:$version-iso
 RUN yum remove -y \
       kernel-* *-firmware grub* centos-logos mariadb*       \
       postfix btrfs* mozjs17 xfsprogs cloud-init pciutils*  \
@@ -159,18 +175,18 @@ RUN yum remove -y \
       perl gcc cpp doxygen emacs-nox || true
 RUN rm -rf /boot
 EOF
-    docker build -t tmp-$repo:$version-iso-cleaner iso-clean
+    docker build -t tmp-${DOCKER_REPO}:$version-iso-cleaner iso-clean
     tmpname=export-$(openssl rand -base64 10 | sed 's@[=/+]@@g')
-    docker run --name="$tmpname" --entrypoint=/does/not/exist tmp-$repo:$version-iso-cleaner 2>/dev/null || true
+    docker run --name="$tmpname" --entrypoint=/does/not/exist tmp-${DOCKER_REPO}:$version-iso-cleaner 2>/dev/null || true
     docker export "$tmpname" | \
         docker import \
-           -c "ENV ARCH=${scw_arch} CENTOS_VERSION=${centos_version} DOCKER_REPO=${repo} CENTOS_IMAGE_URL=${url} QEMU_ARCH=${qemu_arch}" \
-           - "$repo:$version-clean"
+           -c "ENV ARCH=${scw_arch} CENTOS_VERSION=${centos_version} DOCKER_REPO=${DOCKER_REPO} CENTOS_IMAGE_URL=${url} QEMU_ARCH=${qemu_arch}" \
+           - "${DOCKER_REPO}:$version-clean"
     docker rm "$tmpname"
     for tag in $tags; do
-        docker tag $repo:$version-clean $repo:$tag-clean
+        docker tag ${DOCKER_REPO}:$version-clean ${DOCKER_REPO}:$tag-clean
     done
-    docker run -it --rm $repo:$version-clean bash -xc '
+    docker run -it --rm ${DOCKER_REPO}:$version-clean bash -xc '
         uname -a
         echo
         cat /etc/os-release 2>/dev/null
