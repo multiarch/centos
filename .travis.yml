@@ -1,6 +1,6 @@
 dist: xenial
 services:
-  - docker
+    - docker
 language: bash
 addons:
     apt:
@@ -13,6 +13,9 @@ addons:
             - libguestfs-tools
 env:
     global:
+        - QEMU_VER=v3.1.0-3
+        - DOCKER_SERVER=docker.io
+        - DOCKER_REPO=$DOCKER_SERVER/multiarch/centos
         # Enable below environment variables for debug when virt-tar-out shows error.
         # - LIBGUESTFS_DEBUG=1
         # - LIBGUESTFS_TRACE=1
@@ -31,8 +34,15 @@ env:
         # - VERSION=7.6.1810-ppc64le
 
 before_install:
-  - docker run --rm --privileged multiarch/qemu-user-static:register
+    - docker run --rm --privileged multiarch/qemu-user-static:register
 
 script:
-  - ./update.sh "${VERSION}"
-  - docker images
+    - ./update.sh -v "${VERSION}" -u "${QEMU_VER}" -d "${DOCKER_REPO}"
+    - docker images
+
+after_success:
+    - |
+      if [[ "${TRAVIS_BRANCH}" == 'master' && "${TRAVIS_PULL_REQUEST}" == 'false' ]]; then
+          echo "${DOCKER_PASSWORD}" | docker login --username "${DOCKER_USERNAME}" --password-stdin "${DOCKER_SERVER}" && \
+              docker push "${DOCKER_REPO}"
+      fi
